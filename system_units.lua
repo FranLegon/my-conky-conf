@@ -86,10 +86,22 @@ local function get_conky_bytes(template)
     return parse_scaled_value(conky_parse(template))
 end
 
+function conky_get_mem()
+    local total = get_conky_bytes('${memmax}')
+    local used = get_conky_bytes('${mem}')
+    return string.format('%s / %s', format_binary_bytes(used), format_binary_bytes(total))
+end
+
 function conky_get_mem_decimal()
     local total = get_conky_bytes('${memmax}')
     local used = get_conky_bytes('${mem}')
     return string.format('%s / %s', format_decimal_bytes(used), format_decimal_bytes(total))
+end
+
+function conky_get_swap()
+    local total = get_conky_bytes('${swapmax}')
+    local used = get_conky_bytes('${swap}')
+    return string.format('%s / %s', format_binary_bytes(used), format_binary_bytes(total))
 end
 
 function conky_get_swap_decimal()
@@ -98,10 +110,21 @@ function conky_get_swap_decimal()
     return string.format('%s / %s', format_decimal_bytes(used), format_decimal_bytes(total))
 end
 
+function conky_get_fs(path)
+    local total = get_conky_bytes('${fs_size ' .. path .. '}')
+    local used = get_conky_bytes('${fs_used ' .. path .. '}')
+    return string.format('%s / %s', format_binary_bytes(used), format_binary_bytes(total))
+end
+
 function conky_get_fs_decimal(path)
     local total = get_conky_bytes('${fs_size ' .. path .. '}')
     local used = get_conky_bytes('${fs_used ' .. path .. '}')
-    return string.format('%s / %s', format_decimal_bytes(used), format_decimal_bytes(total))
+    return string.format('%d GB / %d GB', round_half_up(used / (1000 ^ 3)), round_half_up(total / (1000 ^ 3)))
+end
+
+function conky_get_diskio_read()
+    local current = get_conky_bytes('${diskio_read}') / 1024
+    return format_binary_rate(current)
 end
 
 function conky_get_diskio_read_decimal()
@@ -109,14 +132,29 @@ function conky_get_diskio_read_decimal()
     return format_decimal_rate(current)
 end
 
+function conky_get_diskio_write()
+    local current = get_conky_bytes('${diskio_write}') / 1024
+    return format_binary_rate(current)
+end
+
 function conky_get_diskio_write_decimal()
     local current = get_conky_bytes('${diskio_write}') / 1024
     return format_decimal_rate(current)
 end
 
+function conky_get_totaldown(iface)
+    local total = get_conky_bytes('${totaldown ' .. iface .. '}')
+    return format_binary_bytes(total)
+end
+
 function conky_get_totaldown_decimal(iface)
     local total = get_conky_bytes('${totaldown ' .. iface .. '}')
     return format_decimal_bytes(total)
+end
+
+function conky_get_totalup(iface)
+    local total = get_conky_bytes('${totalup ' .. iface .. '}')
+    return format_binary_bytes(total)
 end
 
 function conky_get_totalup_decimal(iface)
