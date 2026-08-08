@@ -205,3 +205,64 @@ end
 function conky_get_max_up_decimal(iface)
     return format_decimal_rate(max_up)
 end
+
+local function shell_quote(value)
+    return "'" .. tostring(value):gsub("'", [['\'']]) .. "'"
+end
+
+local function trim(value)
+    return (value:gsub('^%s+', ''):gsub('%s+$', ''))
+end
+
+local function get_grouped_processes(sort_key, limit)
+    local command = string.format(
+        "ps -eo comm=,%s= --no-headers | sort | awk '{ key = $1; value = $2 + 0; data[key] += value } END { for (key in data) printf \"%%s\t%%.1f\\n\", key, data[key] }' | sort -k2,2nr -k1,1 | head -n %d",
+        sort_key,
+        limit
+    )
+    local handle = io.popen(command)
+    if not handle then
+        return {}
+    end
+
+    local processes = {}
+    for line in handle:lines() do
+        local name, value = line:match('^(.-)%s+([%d%.]+)$')
+        if name and value then
+            processes[#processes + 1] = {
+                name = trim(name),
+                value = tonumber(value) or 0,
+            }
+        end
+    end
+    handle:close()
+    return processes
+end
+
+local function get_grouped_process_field(sort_key, index, field)
+    local processes = get_grouped_processes(sort_key, 5)
+    local process = processes[tonumber(index) or 0]
+    if not process then
+        return ''
+    end
+    if field == 'name' then
+        return process.name
+    end
+    return string.format('%.1f%%', process.value)
+end
+
+function conky_get_top_cpu_name(index)
+    return get_grouped_process_field('pcpu', index, 'name')
+end
+
+function conky_get_top_cpu_value(index)
+    return get_grouped_process_field('pcpu', index, 'value')
+end
+
+function conky_get_top_mem_name(index)
+    return get_grouped_process_field('pmem', index, 'name')
+end
+
+function conky_get_top_mem_value(index)
+    return get_grouped_process_field('pmem', index, 'value')
+end
