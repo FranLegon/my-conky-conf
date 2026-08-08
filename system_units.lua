@@ -124,9 +124,19 @@ function conky_get_totalup_decimal(iface)
     return format_decimal_bytes(total)
 end
 
+function conky_get_current_down(iface)
+    local current = tonumber(conky_parse('${downspeedf ' .. iface .. '}')) or 0
+    return format_binary_rate(current)
+end
+
 function conky_get_downspeed_decimal(iface)
     local current = tonumber(conky_parse('${downspeedf ' .. iface .. '}')) or 0
     return format_decimal_rate(current)
+end
+
+function conky_get_current_up(iface)
+    local current = tonumber(conky_parse('${upspeedf ' .. iface .. '}')) or 0
+    return format_binary_rate(current)
 end
 
 function conky_get_upspeed_decimal(iface)
