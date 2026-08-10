@@ -82,8 +82,48 @@ local function format_decimal_rate(kib)
     end
 end
 
+local value_cache = {
+    updates = -1,
+    bytes = {},
+    numbers = {},
+}
+
+local function reset_value_cache(current_updates)
+    if value_cache.updates ~= current_updates then
+        value_cache.updates = current_updates
+        value_cache.bytes = {}
+        value_cache.numbers = {}
+    end
+end
+
+local function get_current_updates()
+    return tonumber(conky_parse('${updates}')) or 0
+end
+
 local function get_conky_bytes(template)
-    return parse_scaled_value(conky_parse(template))
+    local current_updates = get_current_updates()
+    reset_value_cache(current_updates)
+
+    local cached = value_cache.bytes[template]
+    if cached == nil then
+        cached = parse_scaled_value(conky_parse(template))
+        value_cache.bytes[template] = cached
+    end
+
+    return cached
+end
+
+local function get_conky_number(template)
+    local current_updates = get_current_updates()
+    reset_value_cache(current_updates)
+
+    local cached = value_cache.numbers[template]
+    if cached == nil then
+        cached = tonumber(conky_parse(template)) or 0
+        value_cache.numbers[template] = cached
+    end
+
+    return cached
 end
 
 function conky_get_mem()
@@ -163,27 +203,27 @@ function conky_get_totalup_decimal(iface)
 end
 
 function conky_get_current_down(iface)
-    local current = tonumber(conky_parse('${downspeedf ' .. iface .. '}')) or 0
+    local current = get_conky_number('${downspeedf ' .. iface .. '}')
     return format_binary_rate(current)
 end
 
 function conky_get_downspeed_decimal(iface)
-    local current = tonumber(conky_parse('${downspeedf ' .. iface .. '}')) or 0
+    local current = get_conky_number('${downspeedf ' .. iface .. '}')
     return format_decimal_rate(current)
 end
 
 function conky_get_current_up(iface)
-    local current = tonumber(conky_parse('${upspeedf ' .. iface .. '}')) or 0
+    local current = get_conky_number('${upspeedf ' .. iface .. '}')
     return format_binary_rate(current)
 end
 
 function conky_get_upspeed_decimal(iface)
-    local current = tonumber(conky_parse('${upspeedf ' .. iface .. '}')) or 0
+    local current = get_conky_number('${upspeedf ' .. iface .. '}')
     return format_decimal_rate(current)
 end
 
 function conky_get_max_down(iface)
-    local current = tonumber(conky_parse('${downspeedf ' .. iface .. '}')) or 0
+    local current = get_conky_number('${downspeedf ' .. iface .. '}')
     if current > max_down then
         max_down = current
     end
@@ -191,7 +231,7 @@ function conky_get_max_down(iface)
 end
 
 function conky_get_max_up(iface)
-    local current = tonumber(conky_parse('${upspeedf ' .. iface .. '}')) or 0
+    local current = get_conky_number('${upspeedf ' .. iface .. '}')
     if current > max_up then
         max_up = current
     end
@@ -267,7 +307,7 @@ end
 
 local function get_cached_grouped_processes(sort_key)
     local cache_key = sort_key == 'pcpu' and 'cpu' or 'mem'
-    local current_updates = tonumber(conky_parse('${updates}')) or 0
+    local current_updates = get_current_updates()
     local cache = process_cache[cache_key]
 
     if cache.updates ~= current_updates then
