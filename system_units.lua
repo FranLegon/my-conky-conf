@@ -219,10 +219,31 @@ local process_cache = {
     mem = { updates = -1, processes = {} },
 }
 
+local cpu_core_count
+
+local function get_cpu_core_count()
+    if cpu_core_count then
+        return cpu_core_count
+    end
+
+    local handle = io.popen('getconf _NPROCESSORS_ONLN 2>/dev/null')
+    if not handle then
+        cpu_core_count = 1
+        return cpu_core_count
+    end
+
+    local value = trim(handle:read('*a') or '')
+    handle:close()
+    cpu_core_count = math.max(tonumber(value) or 1, 1)
+    return cpu_core_count
+end
+
 local function get_grouped_processes(sort_key, limit)
+    local normalization = sort_key == 'pcpu' and get_cpu_core_count() or 1
     local command = string.format(
-        "ps -eo comm=,%s= --no-headers | awk '{ key = $1; value = $2 + 0; data[key] += value } END { for (key in data) printf \"%%s\t%%.1f\\n\", key, data[key] }' | sort -k2,2nr -k1,1 | head -n %d",
+        "ps -eo comm=,%s= --no-headers | awk -v normalization=%d '{ key = $1; value = ($2 + 0) / normalization; data[key] += value } END { for (key in data) printf \"%%s\t%%.1f\\n\", key, data[key] }' | sort -k2,2nr -k1,1 | head -n %d",
         sort_key,
+        normalization,
         limit
     )
     local handle = io.popen(command)
