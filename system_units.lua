@@ -214,9 +214,14 @@ local function trim(value)
     return (value:gsub('^%s+', ''):gsub('%s+$', ''))
 end
 
+local process_cache = {
+    cpu = { updates = -1, processes = {} },
+    mem = { updates = -1, processes = {} },
+}
+
 local function get_grouped_processes(sort_key, limit)
     local command = string.format(
-        "ps -eo comm=,%s= --no-headers | sort | awk '{ key = $1; value = $2 + 0; data[key] += value } END { for (key in data) printf \"%%s\t%%.1f\\n\", key, data[key] }' | sort -k2,2nr -k1,1 | head -n %d",
+        "ps -eo comm=,%s= --no-headers | awk '{ key = $1; value = $2 + 0; data[key] += value } END { for (key in data) printf \"%%s\t%%.1f\\n\", key, data[key] }' | sort -k2,2nr -k1,1 | head -n %d",
         sort_key,
         limit
     )
@@ -239,8 +244,21 @@ local function get_grouped_processes(sort_key, limit)
     return processes
 end
 
+local function get_cached_grouped_processes(sort_key)
+    local cache_key = sort_key == 'pcpu' and 'cpu' or 'mem'
+    local current_updates = tonumber(conky_parse('${updates}')) or 0
+    local cache = process_cache[cache_key]
+
+    if cache.updates ~= current_updates then
+        cache.processes = get_grouped_processes(sort_key, 5)
+        cache.updates = current_updates
+    end
+
+    return cache.processes
+end
+
 local function get_grouped_process_field(sort_key, index, field)
-    local processes = get_grouped_processes(sort_key, 5)
+    local processes = get_cached_grouped_processes(sort_key)
     local process = processes[tonumber(index) or 0]
     if not process then
         return ''
